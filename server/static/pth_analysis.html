@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTH Data Analysis</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+    * {
+      font-family: "Roboto Mono", monospace;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #fdfdfd;
+      margin: 0;
+      padding: 20px;
+      color: #111;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6em;
+      font-weight: bold;
+      margin-bottom: 1em;
+    }
+
+    .controls {
+      background-color: #ffffff;
+      border: 3px solid #000;
+      padding: 2em;
+      margin-bottom: 20px;
+      box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .control-section {
+      margin-bottom: 1.5em;
+    }
+
+    .control-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-section h3 {
+      margin: 0 0 0.5em 0;
+      font-weight: bold;
+      font-size: 1em;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 0.5em;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-weight: 700;
+      display: inline-block;
+      margin-right: 0.5em;
+    }
+
+    input[type="datetime-local"],
+    input[type="number"],
+    select {
+      padding: 0.6em 0.75em;
+      border: 2px solid #333;
+      border-radius: 0;
+      font-size: 1em;
+      background: #fff;
+      color: #111;
+      box-shadow: 2px 2px 0 #ccc;
+      transition: box-shadow 0.2s ease;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      box-shadow: 2px 2px 0 #555;
+      border-color: #000;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background-color: #f2f2f2;
+      border: 2px solid #999;
+      box-shadow: 2px 2px 0 #ccc;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+
+    .checkbox-item:hover {
+      background-color: #e8e8e8;
+      box-shadow: 2px 2px 0 #555;
+      border-color: #000;
+    }
+
+    .checkbox-item.active {
+      background-color: #ffff99;
+      border-color: #000;
+      box-shadow: 0 0 0 2px #000, 4px 4px 0 #333;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    button {
+      padding: 0.9em 1.5em;
+      background-color: #000;
+      color: #fff;
+      font-weight: bold;
+      border: 2px solid #000;
+      border-radius: 0;
+      font-size: 1em;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 #888;
+      transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #333;
+      box-shadow: 3px 3px 0 #444;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      color: #666;
+      cursor: not-allowed;
+      box-shadow: 2px 2px 0 #aaa;
+    }
+
+    .chart-container {
+      background-color: #ffffff;
+      border: 3px solid #000;
+      padding: 2em;
+      margin-bottom: 20px;
+      box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+      min-height: 400px;
+    }
+
+    #chart {
+      width: 100%;
+      height: 500px;
+    }
+
+    .stats-container {
+      background-color: #ffffff;
+      border: 3px solid #000;
+      padding: 2em;
+      box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .stat-card {
+      background-color: #f2f2f2;
+      border: 2px solid #333;
+      padding: 1em;
+      box-shadow: 2px 2px 0 #ccc;
+    }
+
+    .stat-card h4 {
+      margin: 0 0 0.5em 0;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+
+    .stat-value {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #111;
+    }
+
+    .stat-unit {
+      font-size: 0.9em;
+      color: #444;
+      margin-left: 0.3em;
+    }
+
+    .error-message {
+      background-color: #cc0000;
+      border: 2px solid #990000;
+      color: white;
+      padding: 1em;
+      margin-bottom: 20px;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+      display: none;
+    }
+
+    .loading-message {
+      text-align: center;
+      padding: 2em;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    .point-lookup {
+      margin-top: 1em;
+      padding-top: 1em;
+      border-top: 2px solid #333;
+    }
+
+    .point-result {
+      margin-top: 1em;
+      padding: 1em;
+      background-color: #e6e6e6;
+      border: 2px solid #333;
+      display: none;
+    }
+
+    .point-result.visible {
+      display: block;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>PTH Data Analysis</h1>
+
+    <div class="error-message" id="errorMessage"></div>
+
+    <div class="controls">
+      <div class="control-section">
+        <h3>Date/Time Range</h3>
+        <div class="control-row">
+          <label for="startDate">Start:</label>
+          <input type="datetime-local" id="startDate" />
+          <label for="endDate">End:</label>
+          <input type="datetime-local" id="endDate" />
+          <button id="loadLastDays" type="button">Last 7 Days</button>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Data Types to Display</h3>
+        <div class="checkbox-group" id="dataTypeCheckboxes"></div>
+      </div>
+
+      <div class="control-section point-lookup">
+        <h3>Point Lookup</h3>
+        <div class="control-row">
+          <label for="lookupTime">Time:</label>
+          <input type="datetime-local" id="lookupTime" />
+          <button id="findPointBtn" type="button">Find Closest Point</button>
+        </div>
+        <div class="point-result" id="pointResult"></div>
+      </div>
+
+      <div class="control-row" style="margin-top: 1.5em;">
+        <button id="updateChartBtn" type="button">Update Chart</button>
+        <button id="refreshDataBtn" type="button">Refresh Data</button>
+        <button id="exportCsvBtn" type="button">Export CSV</button>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="stats-container">
+      <h3 style="margin-top: 0; margin-bottom: 1em;">Statistics</h3>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let rawData = [];
+    let chart = null;
+    let availableDataTypes = new Set();
+    let activeDataTypes = new Set();
+
+    // Units mapping for each data type (case-insensitive)
+    const dataTypeUnits = {
+      'pressure': 'Pa',
+      'temperature': '°C',
+      'temp': '°C',
+      'humidity': '%',
+      'ms5611 pressure': 'Pa',
+      'sht31 relative humidity': '%',
+      'sht31 temperature': '°C'
+    };
+
+    // Temperature axis display range.
+    // Uses suggestedMin/Max: the axis will show at least 15–30°C,
+    // but will expand automatically if data falls outside this window.
+    const TEMP_AXIS_MIN = 15;
+    const TEMP_AXIS_MAX = 30;
+
+    // Returns true if the data type key represents temperature
+    function isTemperatureType(dataType) {
+      return dataType.toLowerCase().includes('temp');
+    }
+
+    // Function to get unit for a data type (case-insensitive lookup)
+    function getUnit(dataType) {
+      const lowerType = dataType.toLowerCase();
+      return dataTypeUnits[lowerType] || '';
+    }
+
+    // Function to get display name with units
+    function getDisplayName(dataType) {
+      const unit = getUnit(dataType);
+      return unit ? `${dataType} (${unit})` : dataType;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      document.getElementById("updateChartBtn").addEventListener("click", updateChart);
+      document.getElementById("refreshDataBtn").addEventListener("click", loadData);
+      document.getElementById("loadLastDays").addEventListener("click", loadLastSevenDays);
+      document.getElementById("findPointBtn").addEventListener("click", findClosestPoint);
+      document.getElementById("exportCsvBtn").addEventListener("click", exportToCsv);
+
+      loadLastSevenDays();
+      loadData();
+    }
+
+    function loadLastSevenDays() {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      document.getElementById("endDate").value = formatDateTimeLocal(now);
+      document.getElementById("startDate").value = formatDateTimeLocal(sevenDaysAgo);
+    }
+
+    function formatDateTimeLocal(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    async function loadData() {
+      try {
+        showError("");
+        const response = await fetch('/api/pth/ndays?days=30');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load data: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          showError("No data returned from server");
+          return;
+        }
+        
+        rawData = data.map(row => {
+          const parsed = { time: new Date(parseInt(row.time) * 1000) };
+          Object.keys(row).forEach(key => {
+            if (key !== 'time') {
+              const value = parseFloat(row[key]);
+              if (!isNaN(value)) {
+                parsed[key] = value;
+                availableDataTypes.add(key);
+              }
+            }
+          });
+          return parsed;
+        });
+
+        if (activeDataTypes.size === 0) {
+          activeDataTypes = new Set(availableDataTypes);
+        }
+
+        createDataTypeCheckboxes();
+        updateChart();
+      } catch (error) {
+        console.error("Error loading data:", error);
+        showError(`Error loading data: ${error.message}`);
+      }
+    }
+
+    function createDataTypeCheckboxes() {
+      const container = document.getElementById("dataTypeCheckboxes");
+      container.innerHTML = "";
+
+      Array.from(availableDataTypes).sort().forEach(type => {
+        const div = document.createElement("div");
+        div.className = "checkbox-item";
+        if (activeDataTypes.has(type)) div.classList.add("active");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `checkbox-${type}`;
+        checkbox.checked = activeDataTypes.has(type);
+        checkbox.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            activeDataTypes.add(type);
+            div.classList.add("active");
+          } else {
+            activeDataTypes.delete(type);
+            div.classList.remove("active");
+          }
+          updateChart();
+        });
+
+        const label = document.createElement("label");
+        label.htmlFor = `checkbox-${type}`;
+        label.textContent = type;
+        label.style.cursor = "pointer";
+        label.style.fontWeight = "bold";
+
+        div.appendChild(checkbox);
+        div.appendChild(label);
+
+        div.addEventListener("click", (e) => {
+          if (e.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event("change"));
+          }
+        });
+
+        container.appendChild(div);
+      });
+    }
+
+    function getFilteredData() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+
+      if (!startDate || !endDate) return rawData;
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      return rawData.filter(row => row.time >= start && row.time <= end);
+    }
+
+    function updateChart() {
+      const filteredData = getFilteredData();
+
+      if (filteredData.length === 0) { showError("No data available for selected range"); return; }
+      if (activeDataTypes.size === 0) { showError("No data types selected"); return; }
+
+      showError("");
+
+      const datasets = [];
+      const colors = ['#cc0000', '#00aa00', '#0077cc', '#ff8800', '#8800cc', '#00cccc'];
+      const yAxisIds = ['y', 'y1', 'y2', 'y3', 'y4', 'y5'];
+      let colorIndex = 0;
+      let yAxisIndex = 0;
+
+      Array.from(activeDataTypes).sort().forEach(type => {
+        const data = filteredData.map(row => ({
+          x: row.time,
+          y: row[type]
+        })).filter(point => point.y !== undefined && !isNaN(point.y));
+
+        if (data.length > 0) {
+          const yAxisId = yAxisIds[Math.min(yAxisIndex, yAxisIds.length - 1)];
+          datasets.push({
+            label: getDisplayName(type),
+            data,
+            borderColor: colors[colorIndex % colors.length],
+            backgroundColor: colors[colorIndex % colors.length] + '20',
+            borderWidth: 2,
+            pointRadius: 2,
+            tension: 0.1,
+            yAxisID: yAxisId,
+            _dataType: type  // preserve original key for axis config
+          });
+          colorIndex++;
+          yAxisIndex++;
+        }
+      });
+
+      if (datasets.length === 0) { showError("No valid data to display"); return; }
+
+      // Build Y-axis configuration dynamically
+      const yAxes = {};
+      const activeAxisCount = Math.min(datasets.length, yAxisIds.length);
+
+      for (let i = 0; i < activeAxisCount; i++) {
+        const axisId = yAxisIds[i];
+        const isLeftSide = i % 2 === 0;
+
+        yAxes[axisId] = {
+          type: 'linear',
+          display: true,
+          position: isLeftSide ? 'left' : 'right',
+          ticks: {
+            font: { family: "'Roboto Mono', monospace" }
+          },
+          grid: {
+            drawOnChartArea: i === 0
+          }
+        };
+
+        if (datasets[i]) {
+          yAxes[axisId].title = {
+            display: true,
+            text: datasets[i].label,
+            font: { family: "'Roboto Mono', monospace", weight: 'bold' }
+          };
+
+          // Fixed minimum display range for temperature axes (15–30°C).
+          // suggestedMin/Max: axis will not compress below this range,
+          // but will expand if data points fall outside it.
+          if (isTemperatureType(datasets[i]._dataType)) {
+            yAxes[axisId].suggestedMin = TEMP_AXIS_MIN;
+            yAxes[axisId].suggestedMax = TEMP_AXIS_MAX;
+          }
+        }
+      }
+
+      if (chart) chart.destroy();
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { font: { family: "'Roboto Mono', monospace", weight: 'bold' } }
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                displayFormats: { hour: 'MMM d, HH:mm', day: 'MMM d' }
+              },
+              ticks: { font: { family: "'Roboto Mono', monospace" } }
+            },
+            ...yAxes
+          }
+        }
+      });
+
+      updateStatistics(filteredData);
+    }
+
+    function updateStatistics(data) {
+      const statsGrid = document.getElementById("statsGrid");
+      statsGrid.innerHTML = "";
+      if (data.length === 0) return;
+
+      Array.from(activeDataTypes).sort().forEach(type => {
+        const values = data.map(row => row[type]).filter(v => v !== undefined && !isNaN(v));
+        if (values.length === 0) return;
+
+        const stats = {
+          min: Math.min(...values),
+          max: Math.max(...values),
+          avg: values.reduce((a, b) => a + b, 0) / values.length,
+          count: values.length
+        };
+
+        const unit = getUnit(type);
+        const displayName = getDisplayName(type);
+
+        const card = document.createElement("div");
+        card.className = "stat-card";
+        card.innerHTML = `
+          <h4>${displayName}</h4>
+          <div><span class="stat-value">${stats.min.toFixed(2)}</span><span class="stat-unit">${unit} min</span></div>
+          <div><span class="stat-value">${stats.max.toFixed(2)}</span><span class="stat-unit">${unit} max</span></div>
+          <div><span class="stat-value">${stats.avg.toFixed(2)}</span><span class="stat-unit">${unit} avg</span></div>
+          <div><span class="stat-value">${stats.count}</span><span class="stat-unit">points</span></div>
+        `;
+        statsGrid.appendChild(card);
+      });
+    }
+
+    async function findClosestPoint() {
+      const lookupTime = document.getElementById("lookupTime").value;
+      if (!lookupTime) { showError("Please select a time for point lookup"); return; }
+
+      const epochTime = Math.floor(new Date(lookupTime).getTime() / 1000);
+
+      try {
+        const response = await fetch(`/pth/get_closest?time=${epochTime}`);
+        if (!response.ok) throw new Error(`Failed to find point: ${response.statusText}`);
+        displayPointResult(await response.json());
+      } catch (error) {
+        console.error("Error finding point:", error);
+        showError(`Error finding point: ${error.message}`);
+      }
+    }
+
+    function displayPointResult(point) {
+      const resultDiv = document.getElementById("pointResult");
+      const timestamp = new Date(parseInt(point.time) * 1000);
+
+      let html = `<h4>Closest Data Point</h4>`;
+      html += `<div><strong>Time:</strong> ${timestamp.toLocaleString()}</div>`;
+
+      Object.keys(point).forEach(key => {
+        if (key !== 'time') {
+          const unit = getUnit(key);
+          const value = parseFloat(point[key]).toFixed(2);
+          html += `<div><strong>${key}:</strong> ${value} ${unit}</div>`;
+        }
+      });
+
+      resultDiv.innerHTML = html;
+      resultDiv.classList.add("visible");
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById("errorMessage");
+      if (message) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+      } else {
+        errorDiv.style.display = "none";
+      }
+    }
+
+    function exportToCsv() {
+      const filteredData = getFilteredData();
+      if (filteredData.length === 0) { showError("No data to export"); return; }
+
+      const allTypes = Array.from(availableDataTypes).sort();
+      const headers = ['timestamp', 'date_time', ...allTypes];
+      const csvRows = [headers.join(',')];
+
+      filteredData.forEach(row => {
+        const timestamp = Math.floor(row.time.getTime() / 1000);
+        const datetime = row.time.toISOString();
+        const values = [timestamp, datetime];
+        allTypes.forEach(type => {
+          const value = row[type];
+          values.push(value !== undefined && !isNaN(value) ? value : '');
+        });
+        csvRows.push(values.join(','));
+      });
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const startDate = document.getElementById("startDate").value || 'start';
+      const endDate = document.getElementById("endDate").value || 'end';
+      const filename = `pth_data_${startDate}_to_${endDate}.csv`.replace(/:/g, '-');
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
