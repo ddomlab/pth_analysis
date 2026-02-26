@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS, cross_origin
 import pth_data
 
@@ -7,6 +7,9 @@ CORS(app)
 
 CSV_PATH = "pth_data.csv"
 
+@app.route("/pth_analysis")
+def pth_analysis_interface():
+    return send_from_directory(app.static_folder, "pth_analysis.html") # type: ignore
 
 @app.route('/store_pth_data', methods=['POST'])
 @cross_origin(origins="http://localhost:8000")
