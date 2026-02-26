@@ -39,3 +39,23 @@ print(response.json())
 response = requests.get(f"{BASE_URL}/api/pth/ndays", params={"days": 7})
 data = response.json()  # Returns a list of dicts, one per recorded interval
 ```
+
+## Installation
+
+Right now, the code is not quite "distribution-ready," so if you would like to set up a similar system, it may take some work. A simple installation script/process is in the works.
+
+### Sensor Setup
+
+On the Raspberry Pi, only two scripts are used, both of which are in the `sensor/` folder of this repository. Download both of these scripts, and ensure that you have a Python file with the packages listed in `sensor/requirements.txt`. 
+
+The script is executed every 15 minutes through a cron job. To add the cron job, run `crontab -e` and add the following line:
+
+`*/15 * * * * /PATH/TO/PYTHON/ENV/bin/python /PATH/TO/SCRIPT/post_pth.py`
+
+This will run the script every 15 minutes.
+
+### Server Setup
+
+Ensure that you have Flask, Pandas, and Gunicorn installed, and that all files in `server/` and `server/static` are downloaded into the appropriate folder on your server.
+
+In our setup, we had a pre-existing Flask server running, to which we added the endpoints listed in `server/app.py` You can run the provided `app.py` as a new server, or copy the endpoints to an existing server. For production applications, use Gunicorn, rather than the built-in Flask development server.
