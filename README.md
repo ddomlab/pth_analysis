@@ -8,7 +8,7 @@
 
 ## Workflow
 <img width="715" height="691" alt="image" src="https://gist.github.com/user-attachments/assets/8d86f329-451f-465d-9548-6e8c920ec92b" />
-
+![Workflow Diagram](https://gist.github.com/user-attachments/assets/8d86f329-451f-465d-9548-6e8c920ec92b)
 The PTH monitoring system is composed of two major components: the sensor assembly and the server. The sensor assembly, a Raspberry Pi connected to the VCP-PTH200, posts HTTP requests to the server on a fixed schedule (in our case, every 15 minutes) containing pressure, temperature, and humidity readings.
 
 The Flask server, hosted on a DigitalOcean Droplet, exposes several endpoints for data ingestion and retrieval. Incoming PTH data is accepted at `/store_pth_data` and appended as a row to a CSV file, with headers written automatically on first use. The CSV stores each record as a flat dictionary keyed by sensor channel name (e.g., Temperature, Pressure, Humidity) alongside a Unix epoch timestamp.
