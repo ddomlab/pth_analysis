@@ -1,6 +1,5 @@
 # Automatic Tracking of Pressure, Temperature, and Humidity Data
 **Data Driven Organic Materials Lab**
-Kyle Hollars
 
 ## Materials
 - Dracal VCP-PTH200 (https://www.dracal.com/en/product/pth200/)
