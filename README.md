@@ -4,10 +4,11 @@
 ## Materials
 - Dracal VCP-PTH200 (https://www.dracal.com/en/product/pth200/)
 - Raspberry Pi
-- DigitalOcean Droplet running Flask Server (optional)
+- DigitalOcean Droplet running Flask Server
 
 ## Workflow
-<img width="715" height="691" alt="image" src="https://gist.github.com/user-attachments/assets/8d86f329-451f-465d-9548-6e8c920ec92b" />
+
+<img width="715" height="691" alt="image" src="https://github.com/user-attachments/assets/eb1e824b-68ff-4ea9-8e0b-444fba09f5de" />
 
 The PTH monitoring system is composed of two major components: the sensor assembly and the server. The sensor assembly, a Raspberry Pi connected to the VCP-PTH200, posts HTTP requests to the server on a fixed schedule (in our case, every 15 minutes) containing pressure, temperature, and humidity readings.
 
@@ -17,7 +18,7 @@ A browser-based dashboard is served at `/pth_analysis` on the same DigitalOcean 
 
 The interface exposes several controls: the displayed date range can be narrowed using start and end datetime pickers, individual sensor channels can be toggled on or off via a checkbox panel, and a point lookup tool queries `/pth/get_closest` to retrieve the recorded values nearest to a user-specified timestamp. A statistics panel below the chart displays the minimum, maximum, mean, and total point count for each active channel over the selected time window. Data for the current view can also be exported as a CSV file directly from the browser.
 
-<img width="1157" height="1160" alt="image" src="https://gist.github.com/user-attachments/assets/1cdac5e8-49a5-488e-b532-92dbc8a9f217" />
+<img width="1157" height="1160" alt="image" src="https://github.com/user-attachments/assets/4434c34b-0c72-431a-8d18-1a43940a24b7" />
 
 
 Data can be retrieved through the API in two ways: the `/api/pth/ndays` endpoint returns all records from the past N days as a JSON array, and the `/pth/get_closest` endpoint accepts a Unix timestamp or ISO 8601 datetime string and returns the record with the nearest matching timestamp.
@@ -39,3 +40,23 @@ print(response.json())
 response = requests.get(f"{BASE_URL}/api/pth/ndays", params={"days": 7})
 data = response.json()  # Returns a list of dicts, one per recorded interval
 ```
+
+## Installation
+
+Right now, the code is not quite "distribution-ready," so if you would like to set up a similar system, it may take some work. A simple installation script/process is in the works.
+
+### Sensor Setup
+
+On the Raspberry Pi, only two scripts are used, both of which are in the `sensor/` folder of this repository. Download both of these scripts, and ensure that you have a Python file with the packages listed in `sensor/requirements.txt`. 
+
+The script is executed every 15 minutes through a cron job. To add the cron job, run `crontab -e` and add the following line:
+
+`*/15 * * * * /PATH/TO/PYTHON/ENV/bin/python /PATH/TO/SCRIPT/post_pth.py`
+
+This will run the script every 15 minutes.
+
+### Server Setup
+
+Ensure that you have Flask, Pandas, and Gunicorn installed, and that all files in `server/` and `server/static` are downloaded into the appropriate folder on your server.
+
+In our setup, we had a pre-existing Flask server running, to which we added the endpoints listed in `server/app.py` You can run the provided `app.py` as a new server, or copy the endpoints to an existing server. For production applications, use Gunicorn, rather than the built-in Flask development server.
