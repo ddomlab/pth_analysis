@@ -1,12 +1,10 @@
 import time
-import serial  # https://pypi.org/project/pyserial/
-import crccheck 
-port = '/dev/ttyACM0'
-interval = 1000
+import serial
+import crccheck
 
 crc_checker = crccheck.crc.CrcXmodem()
 
-def get_pth():
+def get_pth(port: str, interval: int):
     finaloutput: dict[str, list[str | float]] = {}
     with serial.Serial(port) as ser:
         ser.readlines(2)  # Discard the first two lines as they may be partial
@@ -55,9 +53,7 @@ def get_pth():
                 if data[1] == "Product ID":  # For the INFO command response
                     info_line = data
                     padlen = max(len(s) for s in info_line[4::2])
-                    # print(", ".join(info_line))
-                else:  # Other info lines only need the message to be echoed
-                    # print(data[3])
+                else:
                     pass
             else:
                 # Create an ID for the device
@@ -73,18 +69,16 @@ def get_pth():
                 # Convert data to a tuple of (sensor, value, unit) triads
                 output = zip(info_line[4::2], data[4::2], data[5::2])
 
-                # Display the current time, product id and serial number before every point
-                # print(f"\n{t}, {device}")
                 finaloutput["time"] = [t_int]
                 for d in output:
-                    # print(("{:" + str(padlen + 2) + "}{} {}").format(*d))
                     try:
                         finaloutput[d[0]].append(d[1])
                     except KeyError:
                         finaloutput[d[0]] = [d[1]]
         return finaloutput
-def get_avg_pth():
-    data = get_pth()
+
+def get_avg_pth(port: str, interval: int):
+    data = get_pth(port, interval)
     avgdata: dict[str, float | str] = {}
     for key in data:
         if key == "time":
@@ -92,6 +86,3 @@ def get_avg_pth():
         else:
             avgdata[key] = round(sum(float(x) for x in data[key]) / len(data[key]), 2)
     return avgdata
-
-if __name__ == "__main__":
-    get_pth()

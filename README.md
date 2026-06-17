@@ -43,17 +43,9 @@ data = response.json()  # Returns a list of dicts, one per recorded interval
 
 ## Installation
 
-Right now, the code is not quite "distribution-ready," so if you would like to set up a similar system, it may take some work. A simple installation script/process is in the works.
-
 ### Sensor Setup
 
-On the Raspberry Pi, only two scripts are used, both of which are in the `sensor/` folder of this repository. Download both of these scripts, and ensure that you have a Python file with the packages listed in `sensor/requirements.txt`. 
-
-The script is executed every 15 minutes through a cron job. To add the cron job, run `crontab -e` and add the following line:
-
-`*/15 * * * * /PATH/TO/PYTHON/ENV/bin/python /PATH/TO/SCRIPT/post_pth.py`
-
-This will run the script every 15 minutes.
+On the Raspberry Pi, install the `pth-sensor` package from the `sensor/` folder of this repository and follow the setup steps in [`sensor/INSTALL.md`](sensor/INSTALL.md). This installs a `pth-sensor` CLI that reads from the serial sensor and posts to the server on a systemd-managed timer (default: every 5 minutes).
 
 ### Server Setup
 
