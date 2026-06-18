@@ -149,6 +149,16 @@
       box-shadow: 2px 2px 0 #aaa;
     }
 
+    .btn-small {
+      padding: 0.4em 0.9em;
+      font-size: 0.85em;
+      box-shadow: 2px 2px 0 #888;
+    }
+
+    .btn-small:hover {
+      box-shadow: 2px 2px 0 #444;
+    }
+
     .chart-container {
       background-color: #ffffff;
       border: 3px solid #000;
@@ -253,7 +263,12 @@
           <input type="datetime-local" id="startDate" />
           <label for="endDate">End:</label>
           <input type="datetime-local" id="endDate" />
-          <button id="loadLastDays" type="button">Last 7 Days</button>
+          <button id="updateChartBtn" type="button">Update Chart</button>
+        </div>
+        <div class="control-row">
+          <button class="btn-small" id="loadLast24Hours" type="button">Last 24 Hours</button>
+          <button class="btn-small" id="loadLast48Hours" type="button">Last 48 Hours</button>
+          <button class="btn-small" id="loadLast7Days" type="button">Last 7 Days</button>
         </div>
       </div>
 
@@ -273,7 +288,6 @@
       </div>
 
       <div class="control-row" style="margin-top: 1.5em;">
-        <button id="updateChartBtn" type="button">Update Chart</button>
         <button id="refreshDataBtn" type="button">Refresh Data</button>
         <button id="exportCsvBtn" type="button">Export CSV</button>
       </div>
@@ -336,19 +350,21 @@
     function init() {
       document.getElementById("updateChartBtn").addEventListener("click", updateChart);
       document.getElementById("refreshDataBtn").addEventListener("click", loadData);
-      document.getElementById("loadLastDays").addEventListener("click", loadLastSevenDays);
+      document.getElementById("loadLast24Hours").addEventListener("click", () => setQuickDateRange(24));
+      document.getElementById("loadLast48Hours").addEventListener("click", () => setQuickDateRange(48));
+      document.getElementById("loadLast7Days").addEventListener("click", () => setQuickDateRange(24 * 7));
       document.getElementById("findPointBtn").addEventListener("click", findClosestPoint);
       document.getElementById("exportCsvBtn").addEventListener("click", exportToCsv);
 
-      loadLastSevenDays();
+      setQuickDateRange(24 * 7);
       loadData();
     }
 
-    function loadLastSevenDays() {
+    function setQuickDateRange(hours) {
       const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const past = new Date(now.getTime() - hours * 60 * 60 * 1000);
       document.getElementById("endDate").value = formatDateTimeLocal(now);
-      document.getElementById("startDate").value = formatDateTimeLocal(sevenDaysAgo);
+      document.getElementById("startDate").value = formatDateTimeLocal(past);
     }
 
     function formatDateTimeLocal(date) {
@@ -363,7 +379,7 @@
     async function loadData() {
       try {
         showError("");
-        const response = await fetch('/api/pth/ndays?days=30');
+        const response = await fetch('/pth/api/ndays?days=30');
         
         if (!response.ok) {
           throw new Error(`Failed to load data: ${response.statusText}`);
@@ -606,7 +622,7 @@
       const epochTime = Math.floor(new Date(lookupTime).getTime() / 1000);
 
       try {
-        const response = await fetch(`/pth/get_closest?time=${epochTime}`);
+        const response = await fetch(`/pth/api/closest?time=${epochTime}`);
         if (!response.ok) throw new Error(`Failed to find point: ${response.statusText}`);
         displayPointResult(await response.json());
       } catch (error) {
@@ -623,7 +639,7 @@
       html += `<div><strong>Time:</strong> ${timestamp.toLocaleString()}</div>`;
 
       Object.keys(point).forEach(key => {
-        if (key !== 'time') {
+        if (key !== 'time' && key !== 'device_id') {
           const unit = getUnit(key);
           const value = parseFloat(point[key]).toFixed(2);
           html += `<div><strong>${key}:</strong> ${value} ${unit}</div>`;

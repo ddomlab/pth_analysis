@@ -1,5 +1,6 @@
 import os
-from dataclasses import dataclass
+import socket
+from dataclasses import dataclass, field
 from pathlib import Path
 
 CONFIG_DIR = Path.home() / ".config" / "pth-sensor"
@@ -8,10 +9,16 @@ CONFIG_FILE = CONFIG_DIR / "config"
 DEFAULT_SERIAL_PORT = "/dev/ttyACM0"
 DEFAULT_POLL_INTERVAL_MS = 1000
 
+
+def _default_device_id() -> str:
+    return socket.gethostname()
+
+
 CONFIG_TEMPLATE = f"""\
 PTH_SERVER_URL=https://your-server.example.com
 PTH_SERIAL_PORT={DEFAULT_SERIAL_PORT}
 PTH_POLL_INTERVAL_MS={DEFAULT_POLL_INTERVAL_MS}
+# PTH_DEVICE_ID={_default_device_id()}
 """
 
 
@@ -20,6 +27,7 @@ class Config:
     server_url: str
     serial_port: str = DEFAULT_SERIAL_PORT
     poll_interval_ms: int = DEFAULT_POLL_INTERVAL_MS
+    device_id: str = field(default_factory=_default_device_id)
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -48,4 +56,5 @@ def load_config() -> Config:
         server_url=server_url,
         serial_port=values.get("PTH_SERIAL_PORT", DEFAULT_SERIAL_PORT),
         poll_interval_ms=int(values.get("PTH_POLL_INTERVAL_MS", DEFAULT_POLL_INTERVAL_MS)),
+        device_id=values.get("PTH_DEVICE_ID", _default_device_id()),
     )

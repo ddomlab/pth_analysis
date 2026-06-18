@@ -56,9 +56,6 @@ def get_pth(port: str, interval: int):
                 else:
                     pass
             else:
-                # Create an ID for the device
-                device = f"{data[1]} {data[2]}"
-
                 # Convert number strings to the appropriate numerical format
                 for i in range(4, len(data), 2):
                     try:
