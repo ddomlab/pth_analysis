@@ -18,7 +18,7 @@ def _row_count(db_path: str) -> int:
         return conn.execute("SELECT COUNT(*) FROM readings;").fetchone()[0]
 
 
-def migrate(csv_path: str, db_path: str, device_id: str) -> tuple[int, int]:
+def migrate(csv_path: str, db_path: str, device_id: str) -> tuple[int, int, int]:
     pth_data.init_db(db_path)
 
     with open(csv_path, newline="") as f:
@@ -26,16 +26,21 @@ def migrate(csv_path: str, db_path: str, device_id: str) -> tuple[int, int]:
 
     if not rows:
         print(f"No rows found in {csv_path}; nothing to migrate.")
-        return (0, 0)
+        return (0, 0, 0)
 
     before = _row_count(db_path)
-    for row in rows:
+    skipped = 0
+    for line_no, row in enumerate(rows, start=2):  # 1-indexed rows, +1 for the header line
         row = dict(row)
         row["device_id"] = device_id
-        pth_data.save_reading(db_path, row)
+        try:
+            pth_data.save_reading(db_path, row)
+        except (TypeError, ValueError) as e:
+            print(f"WARNING: skipping CSV row {line_no} ({row}): {e}")
+            skipped += 1
     after = _row_count(db_path)
 
-    return (len(rows), after - before)
+    return (len(rows), after - before, skipped)
 
 
 def main():
@@ -45,10 +50,16 @@ def main():
     parser.add_argument("--device-id", default=LEGACY_DEVICE_ID)
     args = parser.parse_args()
 
-    csv_rows, new_rows = migrate(args.csv, args.db, args.device_id)
+    csv_rows, new_rows, skipped_rows = migrate(args.csv, args.db, args.device_id)
     print(f"Read {csv_rows} CSV rows.")
+    if skipped_rows:
+        print(f"Skipped {skipped_rows} row(s) due to errors (see warnings above).")
     print(f"Inserted {new_rows} new reading rows into {args.db} (device_id={args.device_id!r}).")
-    if new_rows == 0 and csv_rows > 0:
+    print(
+        "Note: this may be fewer than (CSV rows x channel count) if some readings were "
+        "missing a value for a channel that cycle - those are skipped, not fabricated."
+    )
+    if new_rows == 0 and csv_rows > 0 and skipped_rows == 0:
         print(
             "WARNING: 0 new rows inserted - this likely means the data was already migrated "
             "(re-run is idempotent), or the CSV has a column/parsing problem. Verify with a spot check."

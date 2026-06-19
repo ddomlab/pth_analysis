@@ -21,7 +21,7 @@ The interface exposes several controls: the displayed date range can be narrowed
 <img width="1157" height="1160" alt="image" src="https://github.com/user-attachments/assets/4434c34b-0c72-431a-8d18-1a43940a24b7" />
 
 
-Data can be retrieved through the API in three ways: `/pth/api/ndays` returns all records from the past N days, `/pth/api/range` returns all records between two given timestamps, and `/pth/api/closest` accepts a Unix timestamp or ISO 8601 datetime string and returns the record with the nearest matching timestamp. All three accept Unix epoch integers or ISO 8601 datetime strings wherever a timestamp is expected.
+Data can be retrieved through the API in three ways: `/pth/api/ndays` returns all records from the past N days, `/pth/api/range` returns all records between two given timestamps, and `/pth/api/closest` accepts a Unix timestamp or ISO 8601 datetime string and returns the record with the nearest matching timestamp. All three accept Unix epoch integers or ISO 8601 datetime strings wherever a timestamp is expected. Full endpoint reference: [`server/API.md`](server/API.md).
 ```python
 import requests
 

@@ -46,7 +46,15 @@ def save_reading(db_path: str, data: dict) -> bool:
     data = dict(data)
     time_val = int(data.pop("time"))
     device_id = str(data.pop("device_id", "unknown"))
-    rows = [(device_id, channel, float(value), time_val) for channel, value in data.items()]
+    # None/empty means "this channel wasn't recorded this cycle" (e.g. the old
+    # flat-CSV format could write a short row if a channel dropped out, which
+    # csv.DictReader then reads back as None) - skip it rather than inserting
+    # a fabricated value.
+    rows = [
+        (device_id, channel, float(value), time_val)
+        for channel, value in data.items()
+        if value is not None and value != ""
+    ]
     with _get_conn(db_path) as conn:
         conn.executemany(
             "INSERT INTO readings (device_id, channel, value, time) VALUES (?, ?, ?, ?);",
