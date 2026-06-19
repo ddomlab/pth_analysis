@@ -327,21 +327,37 @@
     const TEMP_AXIS_MIN = 15;
     const TEMP_AXIS_MAX = 30;
 
+    // Data type checkboxes are keyed by "<device_id>::<channel>" so that the
+    // same channel name from two different devices never collapses into one
+    // chart line. Splits back into its parts wherever a channel/device is needed.
+    function parseDataTypeKey(key) {
+      const idx = key.indexOf('::');
+      return idx === -1 ? { device: null, channel: key } : { device: key.slice(0, idx), channel: key.slice(idx + 2) };
+    }
+
+    function knownDeviceCount() {
+      const devices = new Set();
+      availableDataTypes.forEach(key => devices.add(parseDataTypeKey(key).device));
+      return devices.size;
+    }
+
     // Returns true if the data type key represents temperature
     function isTemperatureType(dataType) {
-      return dataType.toLowerCase().includes('temp');
+      return parseDataTypeKey(dataType).channel.toLowerCase().includes('temp');
     }
 
     // Function to get unit for a data type (case-insensitive lookup)
     function getUnit(dataType) {
-      const lowerType = dataType.toLowerCase();
-      return dataTypeUnits[lowerType] || '';
+      const { channel } = parseDataTypeKey(dataType);
+      return dataTypeUnits[channel.toLowerCase()] || '';
     }
 
-    // Function to get display name with units
+    // Function to get display name with units, qualified by device once more than one is present
     function getDisplayName(dataType) {
+      const { device, channel } = parseDataTypeKey(dataType);
       const unit = getUnit(dataType);
-      return unit ? `${dataType} (${unit})` : dataType;
+      const base = unit ? `${channel} (${unit})` : channel;
+      return device && knownDeviceCount() > 1 ? `${base} [${device}]` : base;
     }
 
     // Initialize
@@ -405,13 +421,13 @@
         }
 
         rawData = data.map(row => {
-          const parsed = { time: new Date(parseInt(row.time) * 1000) };
+          const parsed = { time: new Date(parseInt(row.time) * 1000), device_id: row.device_id };
           Object.keys(row).forEach(key => {
-            if (key !== 'time') {
+            if (key !== 'time' && key !== 'device_id') {
               const value = parseFloat(row[key]);
               if (!isNaN(value)) {
                 parsed[key] = value;
-                availableDataTypes.add(key);
+                availableDataTypes.add(`${row.device_id}::${key}`);
               }
             }
           });
@@ -456,7 +472,7 @@
 
         const label = document.createElement("label");
         label.htmlFor = `checkbox-${type}`;
-        label.textContent = type;
+        label.textContent = getDisplayName(type);
         label.style.cursor = "pointer";
         label.style.fontWeight = "bold";
 
@@ -500,10 +516,11 @@
       let yAxisIndex = 0;
 
       Array.from(activeDataTypes).sort().forEach(type => {
-        const data = filteredData.map(row => ({
-          x: row.time,
-          y: row[type]
-        })).filter(point => point.y !== undefined && !isNaN(point.y));
+        const { device, channel } = parseDataTypeKey(type);
+        const data = filteredData
+          .filter(row => row.device_id === device)
+          .map(row => ({ x: row.time, y: row[channel] }))
+          .filter(point => point.y !== undefined && !isNaN(point.y));
 
         if (data.length > 0) {
           const yAxisId = yAxisIds[Math.min(yAxisIndex, yAxisIds.length - 1)];
@@ -601,7 +618,11 @@
       if (data.length === 0) return;
 
       Array.from(activeDataTypes).sort().forEach(type => {
-        const values = data.map(row => row[type]).filter(v => v !== undefined && !isNaN(v));
+        const { device, channel } = parseDataTypeKey(type);
+        const values = data
+          .filter(row => row.device_id === device)
+          .map(row => row[channel])
+          .filter(v => v !== undefined && !isNaN(v));
         if (values.length === 0) return;
 
         const stats = {
@@ -676,16 +697,18 @@
       const filteredData = getFilteredData();
       if (filteredData.length === 0) { showError("No data to export"); return; }
 
-      const allTypes = Array.from(availableDataTypes).sort();
-      const headers = ['timestamp', 'date_time', ...allTypes];
+      const allChannels = Array.from(new Set(
+        Array.from(availableDataTypes).map(type => parseDataTypeKey(type).channel)
+      )).sort();
+      const headers = ['timestamp', 'date_time', 'device_id', ...allChannels];
       const csvRows = [headers.join(',')];
 
       filteredData.forEach(row => {
         const timestamp = Math.floor(row.time.getTime() / 1000);
         const datetime = row.time.toISOString();
-        const values = [timestamp, datetime];
-        allTypes.forEach(type => {
-          const value = row[type];
+        const values = [timestamp, datetime, row.device_id || ''];
+        allChannels.forEach(channel => {
+          const value = row[channel];
           values.push(value !== undefined && !isNaN(value) ? value : '');
         });
         csvRows.push(values.join(','));

@@ -83,16 +83,7 @@ def _pivot_to_records(rows: list[sqlite3.Row]) -> list[dict]:
     return list(grouped.values())
 
 
-def _rows_to_dataframe(rows: list[sqlite3.Row]) -> pd.DataFrame:
-    """ `time` stays a plain epoch-seconds int column - all filtering already
-    happens in SQL, so there's no need to round-trip it through datetime64
-    (whose default resolution varies by pandas version and previously caused
-    a silent truncation bug here). """
-    records = _pivot_to_records(rows)
-    return pd.DataFrame(records)
-
-
-def get_recent_readings(db_path: str, days: float) -> pd.DataFrame:
+def get_recent_readings(db_path: str, days: float) -> list[dict]:
     """ Get readings from the last 'days' days. """
     cutoff_time = int((datetime.now() - pd.Timedelta(days=days)).timestamp())
     with _get_conn(db_path) as conn:
@@ -100,12 +91,18 @@ def get_recent_readings(db_path: str, days: float) -> pd.DataFrame:
             "SELECT device_id, channel, value, time FROM readings WHERE time >= ? ORDER BY time;",
             (cutoff_time,),
         ).fetchall()
-    return _rows_to_dataframe(rows)
+    return _pivot_to_records(rows)
 
 
-def get_readings_in_range(db_path: str, start: str | int, end: str | int) -> pd.DataFrame:
+def get_readings_in_range(db_path: str, start: str | int, end: str | int) -> list[dict]:
     """ Get readings with time in [start, end], inclusive. Each bound accepts
-    a Unix epoch integer (or numeric string) or an ISO 8601 datetime string. """
+    a Unix epoch integer (or numeric string) or an ISO 8601 datetime string.
+
+    Returns a plain list of dicts rather than a DataFrame deliberately: when
+    devices report different channel sets, building a DataFrame from these
+    records pads each row out to the union of all columns, filling the gaps
+    with NaN - which Flask's jsonify then emits as a bare `NaN` token. That's
+    not valid JSON, so browsers' JSON.parse (and fetch().json()) reject it. """
     start_time = _parse_time(start)
     end_time = _parse_time(end)
     with _get_conn(db_path) as conn:
@@ -113,7 +110,7 @@ def get_readings_in_range(db_path: str, start: str | int, end: str | int) -> pd.
             "SELECT device_id, channel, value, time FROM readings WHERE time >= ? AND time <= ? ORDER BY time;",
             (start_time, end_time),
         ).fetchall()
-    return _rows_to_dataframe(rows)
+    return _pivot_to_records(rows)
 
 
 def get_closest_reading(db_path: str, target_time: str | int) -> dict | None:

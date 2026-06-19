@@ -18,12 +18,6 @@ def _db_path() -> str:
     return current_app.config.get("PTH_DB_PATH", DEFAULT_DB_PATH)
 
 
-def _serialize_dataframe(data):
-    if data.empty:
-        return jsonify([])
-    return jsonify(data.to_dict("records"))
-
-
 @pth_bp.route("/dashboard")
 def dashboard():
     return send_from_directory(pth_bp.static_folder, "pth_analysis.html")
@@ -65,7 +59,7 @@ def ndays():
     except ValueError:
         return jsonify({"error": f"Invalid days parameter: {days_arg}"}), 400
 
-    return _serialize_dataframe(pth_data.get_recent_readings(_db_path(), days))
+    return jsonify(pth_data.get_recent_readings(_db_path(), days))
 
 
 @pth_bp.route("/api/range", methods=["GET"])
@@ -86,4 +80,4 @@ def data_range():
     except ValueError:
         return jsonify({"error": f"Invalid start/end value: {start!r}, {end!r}"}), 400
 
-    return _serialize_dataframe(data)
+    return jsonify(data)
