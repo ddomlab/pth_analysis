@@ -348,7 +348,7 @@
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
-      document.getElementById("updateChartBtn").addEventListener("click", updateChart);
+      document.getElementById("updateChartBtn").addEventListener("click", loadData);
       document.getElementById("refreshDataBtn").addEventListener("click", loadData);
       document.getElementById("loadLast24Hours").addEventListener("click", () => setQuickDateRange(24));
       document.getElementById("loadLast48Hours").addEventListener("click", () => setQuickDateRange(48));
@@ -379,19 +379,31 @@
     async function loadData() {
       try {
         showError("");
-        const response = await fetch('/pth/api/ndays?days=30');
-        
+
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        if (!startDate || !endDate) {
+          showError("Please select a start and end date");
+          return;
+        }
+        const start = Math.floor(new Date(startDate).getTime() / 1000);
+        const end = Math.floor(new Date(endDate).getTime() / 1000);
+
+        const response = await fetch(`/pth/api/range?start=${start}&end=${end}`);
+
         if (!response.ok) {
           throw new Error(`Failed to load data: ${response.statusText}`);
         }
 
         const data = await response.json();
-        
+
         if (!Array.isArray(data) || data.length === 0) {
-          showError("No data returned from server");
+          rawData = [];
+          createDataTypeCheckboxes();
+          showError("No data returned from server for the selected range");
           return;
         }
-        
+
         rawData = data.map(row => {
           const parsed = { time: new Date(parseInt(row.time) * 1000) };
           Object.keys(row).forEach(key => {
