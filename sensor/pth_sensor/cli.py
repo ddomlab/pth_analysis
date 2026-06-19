@@ -106,8 +106,8 @@ def main():
     install_p = sub.add_parser("install", help="Install and enable systemd timer")
     install_p.add_argument(
         "--interval",
-        default="5min",
-        help="Timer interval (e.g. 1min, 5min, 1h). Default: 5min",
+        default="15min",
+        help="Timer interval (e.g. 1min, 5min, 1h). Default: 15min",
     )
 
     args = parser.parse_args()

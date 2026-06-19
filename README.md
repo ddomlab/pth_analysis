@@ -49,19 +49,36 @@ data = response.json()
 
 ### Sensor Setup
 
-On the Raspberry Pi, install the `pth-sensor` package from the `sensor/` folder of this repository and follow the setup steps in [`sensor/INSTALL.md`](sensor/INSTALL.md). This installs a `pth-sensor` CLI that reads from the serial sensor and posts to the server on a systemd-managed timer (default: every 5 minutes).
+The sensor installation script creates a systemd service that takes a reading at a fixed interval (default 15 minutes) and posts it to the server.
+
+In the terminal on your sensor device (Raspberry Pi), follow the instructions at [`sensor/INSTALL.md`](sensor/INSTALL.md) to install and configure the sensor.
+
 
 ### Server Setup
 
+On your server, clone this repository. To download only the server code (not the sensor code), run:
+
+```bash
+git clone --no-checkout https://github.com/ddomlab/pth_analysis.git && cd pth_analysis
+```
+```bash
+git sparse-checkout init --cone && git sparse-checkout set server && git checkout main
+```
+Then, pip install the server blueprint
+
+```bash
+pip install ./server
+```
+
 The server is a pip-installable Flask Blueprint (`pth_server`), usable two ways:
 
-- **Standalone**: `pip install ./server`, then run the provided `server/app.py` (`python3 app.py`, or for production, `gunicorn app:app`). This registers the blueprint on its own dedicated Flask app.
-- **Mounted on an existing Flask app**: `pip install ./server`, then in your app's setup code:
+- **As a standalone server** Simply run the provided `server/app.py` (`python3 app.py`, for testing or for production, `gunicorn app:app`). This registers the blueprint on its own dedicated Flask app. See [this guide](https://dev.to/tkirwa/create-a-systemd-service-script-for-running-gunicorn-to-serve-your-application-5aea) for help setting up Gunicorn.
+- **Mounted on an existing Flask app**: In your app's setup code:
   ```python
-  from pth_server import pth_bp, init_app_db
+  import pth_server 
 
-  app.register_blueprint(pth_bp)
-  init_app_db(app)
+  app.register_blueprint(pth_server.pth_bp)
+  pth_server.init_app_db(app)
   ```
 
 Either way, every PTH route lives under the `/pth` prefix (`/pth/dashboard`, `/pth/api/...`). Set `app.config["PTH_DB_PATH"]` to control where the SQLite database file is created (defaults to `pth_data.db` in the working directory).

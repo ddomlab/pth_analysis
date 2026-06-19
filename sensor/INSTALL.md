@@ -11,9 +11,20 @@
 
 ## Install
 
+To install the sensor software without git-cloning (recommended), simply run:
+
 ```bash
-pip install ./sensor
+pip install "git+https://github.com/ddomlab/pth_analysis.git#subdirectory=sensor"
 ```
+
+Alternatively, clone the git repository and pip install from there:
+
+```bash
+git clone https://github.com/ddomlab/pth_analysis.git
+```
+```bash
+pip install pth_analysis/sensor
+``` 
 
 ## Set up the systemd timer
 
@@ -25,7 +36,7 @@ This will:
 - Create a config file at `~/.config/pth-sensor/config`
 - Install and enable a systemd user timer
 
-The default interval is every 5 minutes. To use a different interval:
+The default interval is every 15 minutes. To use a different interval:
 
 ```bash
 pth-sensor install --interval 1min
