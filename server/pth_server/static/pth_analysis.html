@@ -149,6 +149,16 @@
       box-shadow: 2px 2px 0 #aaa;
     }
 
+    .btn-small {
+      padding: 0.4em 0.9em;
+      font-size: 0.85em;
+      box-shadow: 2px 2px 0 #888;
+    }
+
+    .btn-small:hover {
+      box-shadow: 2px 2px 0 #444;
+    }
+
     .chart-container {
       background-color: #ffffff;
       border: 3px solid #000;
@@ -253,7 +263,16 @@
           <input type="datetime-local" id="startDate" />
           <label for="endDate">End:</label>
           <input type="datetime-local" id="endDate" />
-          <button id="loadLastDays" type="button">Last 7 Days</button>
+          <label for="deviceFilter">Device:</label>
+          <select id="deviceFilter">
+            <option value="">All Devices</option>
+          </select>
+          <button id="updateChartBtn" type="button">Update Chart</button>
+        </div>
+        <div class="control-row">
+          <button class="btn-small" id="loadLast24Hours" type="button">Last 24 Hours</button>
+          <button class="btn-small" id="loadLast48Hours" type="button">Last 48 Hours</button>
+          <button class="btn-small" id="loadLast7Days" type="button">Last 7 Days</button>
         </div>
       </div>
 
@@ -269,11 +288,11 @@
           <input type="datetime-local" id="lookupTime" />
           <button id="findPointBtn" type="button">Find Closest Point</button>
         </div>
+        <p style="margin: 0.5em 0 0; font-size: 0.85em; color: #555;">Uses the Device filter above — leave it on "All Devices" to find the closest point across any device.</p>
         <div class="point-result" id="pointResult"></div>
       </div>
 
       <div class="control-row" style="margin-top: 1.5em;">
-        <button id="updateChartBtn" type="button">Update Chart</button>
         <button id="refreshDataBtn" type="button">Refresh Data</button>
         <button id="exportCsvBtn" type="button">Export CSV</button>
       </div>
@@ -295,6 +314,7 @@
     let chart = null;
     let availableDataTypes = new Set();
     let activeDataTypes = new Set();
+    let knownDeviceIds = new Set();
 
     // Units mapping for each data type (case-insensitive)
     const dataTypeUnits = {
@@ -313,42 +333,60 @@
     const TEMP_AXIS_MIN = 15;
     const TEMP_AXIS_MAX = 30;
 
+    // Data type checkboxes are keyed by "<device_id>::<channel>" so that the
+    // same channel name from two different devices never collapses into one
+    // chart line. Splits back into its parts wherever a channel/device is needed.
+    function parseDataTypeKey(key) {
+      const idx = key.indexOf('::');
+      return idx === -1 ? { device: null, channel: key } : { device: key.slice(0, idx), channel: key.slice(idx + 2) };
+    }
+
+    function knownDeviceCount() {
+      const devices = new Set();
+      availableDataTypes.forEach(key => devices.add(parseDataTypeKey(key).device));
+      return devices.size;
+    }
+
     // Returns true if the data type key represents temperature
     function isTemperatureType(dataType) {
-      return dataType.toLowerCase().includes('temp');
+      return parseDataTypeKey(dataType).channel.toLowerCase().includes('temp');
     }
 
     // Function to get unit for a data type (case-insensitive lookup)
     function getUnit(dataType) {
-      const lowerType = dataType.toLowerCase();
-      return dataTypeUnits[lowerType] || '';
+      const { channel } = parseDataTypeKey(dataType);
+      return dataTypeUnits[channel.toLowerCase()] || '';
     }
 
-    // Function to get display name with units
+    // Function to get display name with units, qualified by device once more than one is present
     function getDisplayName(dataType) {
+      const { device, channel } = parseDataTypeKey(dataType);
       const unit = getUnit(dataType);
-      return unit ? `${dataType} (${unit})` : dataType;
+      const base = unit ? `${channel} (${unit})` : channel;
+      return device && knownDeviceCount() > 1 ? `${base} [${device}]` : base;
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
-      document.getElementById("updateChartBtn").addEventListener("click", updateChart);
+      document.getElementById("updateChartBtn").addEventListener("click", loadData);
       document.getElementById("refreshDataBtn").addEventListener("click", loadData);
-      document.getElementById("loadLastDays").addEventListener("click", loadLastSevenDays);
+      document.getElementById("loadLast24Hours").addEventListener("click", () => setQuickDateRange(24));
+      document.getElementById("loadLast48Hours").addEventListener("click", () => setQuickDateRange(48));
+      document.getElementById("loadLast7Days").addEventListener("click", () => setQuickDateRange(24 * 7));
       document.getElementById("findPointBtn").addEventListener("click", findClosestPoint);
       document.getElementById("exportCsvBtn").addEventListener("click", exportToCsv);
 
-      loadLastSevenDays();
+      setQuickDateRange(24 * 7);
       loadData();
     }
 
-    function loadLastSevenDays() {
+    function setQuickDateRange(hours) {
       const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const past = new Date(now.getTime() - hours * 60 * 60 * 1000);
       document.getElementById("endDate").value = formatDateTimeLocal(now);
-      document.getElementById("startDate").value = formatDateTimeLocal(sevenDaysAgo);
+      document.getElementById("startDate").value = formatDateTimeLocal(past);
     }
 
     function formatDateTimeLocal(date) {
@@ -363,27 +401,44 @@
     async function loadData() {
       try {
         showError("");
-        const response = await fetch('/api/pth/ndays?days=30');
-        
+
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        if (!startDate || !endDate) {
+          showError("Please select a start and end date");
+          return;
+        }
+        const start = Math.floor(new Date(startDate).getTime() / 1000);
+        const end = Math.floor(new Date(endDate).getTime() / 1000);
+
+        const params = new URLSearchParams({ start, end });
+        const deviceFilter = document.getElementById("deviceFilter").value;
+        if (deviceFilter) params.set("device_id", deviceFilter);
+
+        const response = await fetch(`/pth/api/range?${params.toString()}`);
+
         if (!response.ok) {
           throw new Error(`Failed to load data: ${response.statusText}`);
         }
 
         const data = await response.json();
-        
+
         if (!Array.isArray(data) || data.length === 0) {
-          showError("No data returned from server");
+          rawData = [];
+          createDataTypeCheckboxes();
+          showError("No data returned from server for the selected range");
           return;
         }
-        
+
         rawData = data.map(row => {
-          const parsed = { time: new Date(parseInt(row.time) * 1000) };
+          const parsed = { time: new Date(parseInt(row.time) * 1000), device_id: row.device_id };
+          knownDeviceIds.add(row.device_id);
           Object.keys(row).forEach(key => {
-            if (key !== 'time') {
+            if (key !== 'time' && key !== 'device_id') {
               const value = parseFloat(row[key]);
               if (!isNaN(value)) {
                 parsed[key] = value;
-                availableDataTypes.add(key);
+                availableDataTypes.add(`${row.device_id}::${key}`);
               }
             }
           });
@@ -394,6 +449,7 @@
           activeDataTypes = new Set(availableDataTypes);
         }
 
+        updateDeviceFilterOptions();
         createDataTypeCheckboxes();
         updateChart();
       } catch (error) {
@@ -428,7 +484,7 @@
 
         const label = document.createElement("label");
         label.htmlFor = `checkbox-${type}`;
-        label.textContent = type;
+        label.textContent = getDisplayName(type);
         label.style.cursor = "pointer";
         label.style.fontWeight = "bold";
 
@@ -444,6 +500,21 @@
 
         container.appendChild(div);
       });
+    }
+
+    function updateDeviceFilterOptions() {
+      const select = document.getElementById("deviceFilter");
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">All Devices</option>';
+      Array.from(knownDeviceIds).sort().forEach(deviceId => {
+        const option = document.createElement("option");
+        option.value = deviceId;
+        option.textContent = deviceId;
+        select.appendChild(option);
+      });
+      if (Array.from(select.options).some(o => o.value === currentValue)) {
+        select.value = currentValue;
+      }
     }
 
     function getFilteredData() {
@@ -472,10 +543,11 @@
       let yAxisIndex = 0;
 
       Array.from(activeDataTypes).sort().forEach(type => {
-        const data = filteredData.map(row => ({
-          x: row.time,
-          y: row[type]
-        })).filter(point => point.y !== undefined && !isNaN(point.y));
+        const { device, channel } = parseDataTypeKey(type);
+        const data = filteredData
+          .filter(row => row.device_id === device)
+          .map(row => ({ x: row.time, y: row[channel] }))
+          .filter(point => point.y !== undefined && !isNaN(point.y));
 
         if (data.length > 0) {
           const yAxisId = yAxisIds[Math.min(yAxisIndex, yAxisIds.length - 1)];
@@ -573,7 +645,11 @@
       if (data.length === 0) return;
 
       Array.from(activeDataTypes).sort().forEach(type => {
-        const values = data.map(row => row[type]).filter(v => v !== undefined && !isNaN(v));
+        const { device, channel } = parseDataTypeKey(type);
+        const values = data
+          .filter(row => row.device_id === device)
+          .map(row => row[channel])
+          .filter(v => v !== undefined && !isNaN(v));
         if (values.length === 0) return;
 
         const stats = {
@@ -604,9 +680,12 @@
       if (!lookupTime) { showError("Please select a time for point lookup"); return; }
 
       const epochTime = Math.floor(new Date(lookupTime).getTime() / 1000);
+      const params = new URLSearchParams({ time: epochTime });
+      const deviceFilter = document.getElementById("deviceFilter").value;
+      if (deviceFilter) params.set("device_id", deviceFilter);
 
       try {
-        const response = await fetch(`/pth/get_closest?time=${epochTime}`);
+        const response = await fetch(`/pth/api/closest?${params.toString()}`);
         if (!response.ok) throw new Error(`Failed to find point: ${response.statusText}`);
         displayPointResult(await response.json());
       } catch (error) {
@@ -623,7 +702,7 @@
       html += `<div><strong>Time:</strong> ${timestamp.toLocaleString()}</div>`;
 
       Object.keys(point).forEach(key => {
-        if (key !== 'time') {
+        if (key !== 'time' && key !== 'device_id') {
           const unit = getUnit(key);
           const value = parseFloat(point[key]).toFixed(2);
           html += `<div><strong>${key}:</strong> ${value} ${unit}</div>`;
@@ -648,16 +727,18 @@
       const filteredData = getFilteredData();
       if (filteredData.length === 0) { showError("No data to export"); return; }
 
-      const allTypes = Array.from(availableDataTypes).sort();
-      const headers = ['timestamp', 'date_time', ...allTypes];
+      const allChannels = Array.from(new Set(
+        Array.from(availableDataTypes).map(type => parseDataTypeKey(type).channel)
+      )).sort();
+      const headers = ['timestamp', 'date_time', 'device_id', ...allChannels];
       const csvRows = [headers.join(',')];
 
       filteredData.forEach(row => {
         const timestamp = Math.floor(row.time.getTime() / 1000);
         const datetime = row.time.toISOString();
-        const values = [timestamp, datetime];
-        allTypes.forEach(type => {
-          const value = row[type];
+        const values = [timestamp, datetime, row.device_id || ''];
+        allChannels.forEach(channel => {
+          const value = row[channel];
           values.push(value !== undefined && !isNaN(value) ? value : '');
         });
         csvRows.push(values.join(','));
