@@ -263,6 +263,10 @@
           <input type="datetime-local" id="startDate" />
           <label for="endDate">End:</label>
           <input type="datetime-local" id="endDate" />
+          <label for="deviceFilter">Device:</label>
+          <select id="deviceFilter">
+            <option value="">All Devices</option>
+          </select>
           <button id="updateChartBtn" type="button">Update Chart</button>
         </div>
         <div class="control-row">
@@ -284,6 +288,7 @@
           <input type="datetime-local" id="lookupTime" />
           <button id="findPointBtn" type="button">Find Closest Point</button>
         </div>
+        <p style="margin: 0.5em 0 0; font-size: 0.85em; color: #555;">Uses the Device filter above — leave it on "All Devices" to find the closest point across any device.</p>
         <div class="point-result" id="pointResult"></div>
       </div>
 
@@ -309,6 +314,7 @@
     let chart = null;
     let availableDataTypes = new Set();
     let activeDataTypes = new Set();
+    let knownDeviceIds = new Set();
 
     // Units mapping for each data type (case-insensitive)
     const dataTypeUnits = {
@@ -405,7 +411,11 @@
         const start = Math.floor(new Date(startDate).getTime() / 1000);
         const end = Math.floor(new Date(endDate).getTime() / 1000);
 
-        const response = await fetch(`/pth/api/range?start=${start}&end=${end}`);
+        const params = new URLSearchParams({ start, end });
+        const deviceFilter = document.getElementById("deviceFilter").value;
+        if (deviceFilter) params.set("device_id", deviceFilter);
+
+        const response = await fetch(`/pth/api/range?${params.toString()}`);
 
         if (!response.ok) {
           throw new Error(`Failed to load data: ${response.statusText}`);
@@ -422,6 +432,7 @@
 
         rawData = data.map(row => {
           const parsed = { time: new Date(parseInt(row.time) * 1000), device_id: row.device_id };
+          knownDeviceIds.add(row.device_id);
           Object.keys(row).forEach(key => {
             if (key !== 'time' && key !== 'device_id') {
               const value = parseFloat(row[key]);
@@ -438,6 +449,7 @@
           activeDataTypes = new Set(availableDataTypes);
         }
 
+        updateDeviceFilterOptions();
         createDataTypeCheckboxes();
         updateChart();
       } catch (error) {
@@ -488,6 +500,21 @@
 
         container.appendChild(div);
       });
+    }
+
+    function updateDeviceFilterOptions() {
+      const select = document.getElementById("deviceFilter");
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">All Devices</option>';
+      Array.from(knownDeviceIds).sort().forEach(deviceId => {
+        const option = document.createElement("option");
+        option.value = deviceId;
+        option.textContent = deviceId;
+        select.appendChild(option);
+      });
+      if (Array.from(select.options).some(o => o.value === currentValue)) {
+        select.value = currentValue;
+      }
     }
 
     function getFilteredData() {
@@ -653,9 +680,12 @@
       if (!lookupTime) { showError("Please select a time for point lookup"); return; }
 
       const epochTime = Math.floor(new Date(lookupTime).getTime() / 1000);
+      const params = new URLSearchParams({ time: epochTime });
+      const deviceFilter = document.getElementById("deviceFilter").value;
+      if (deviceFilter) params.set("device_id", deviceFilter);
 
       try {
-        const response = await fetch(`/pth/api/closest?time=${epochTime}`);
+        const response = await fetch(`/pth/api/closest?${params.toString()}`);
         if (!response.ok) throw new Error(`Failed to find point: ${response.statusText}`);
         displayPointResult(await response.json());
       } catch (error) {

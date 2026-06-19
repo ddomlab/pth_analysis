@@ -35,10 +35,18 @@ def store_data():
 
 @pth_bp.route("/api/closest", methods=["GET"])
 def closest():
+    """
+    Returns the reading closest to 'time'. Optionally pass device_id to restrict
+    to one device - without it, a tie between two devices at the same exact
+    timestamp is broken arbitrarily.
+    Example usage:
+        /pth/api/closest?time=1740000000&device_id=greenhouse-1
+    """
     target_time = request.args.get("time")
     if not target_time:
         return jsonify({"error": "No time provided"}), 400
-    result = pth_data.get_closest_reading(_db_path(), target_time)
+    device_id = request.args.get("device_id")
+    result = pth_data.get_closest_reading(_db_path(), target_time, device_id)
     if result:
         return jsonify(result), 200
     return jsonify({"error": "No matching data found"}), 404
@@ -47,9 +55,9 @@ def closest():
 @pth_bp.route("/api/ndays", methods=["GET"])
 def ndays():
     """
-    Returns PTH data for the past N days.
+    Returns PTH data for the past N days. Optionally pass device_id to restrict to one device.
     Example usage:
-        /pth/api/ndays?days=3
+        /pth/api/ndays?days=3&device_id=greenhouse-1
     """
     days_arg = request.args.get("days", default="1")
     try:
@@ -59,24 +67,27 @@ def ndays():
     except ValueError:
         return jsonify({"error": f"Invalid days parameter: {days_arg}"}), 400
 
-    return jsonify(pth_data.get_recent_readings(_db_path(), days))
+    device_id = request.args.get("device_id")
+    return jsonify(pth_data.get_recent_readings(_db_path(), days, device_id))
 
 
 @pth_bp.route("/api/range", methods=["GET"])
 def data_range():
     """
     Returns all PTH data points with a time between 'start' and 'end' (inclusive).
-    Each accepts a Unix epoch integer or an ISO 8601 datetime string.
+    Each accepts a Unix epoch integer or an ISO 8601 datetime string. Optionally
+    pass device_id to restrict to one device.
     Example usage:
-        /pth/api/range?start=1740000000&end=2025-03-01T00:00:00
+        /pth/api/range?start=1740000000&end=2025-03-01T00:00:00&device_id=greenhouse-1
     """
     start = request.args.get("start")
     end = request.args.get("end")
     if not start or not end:
         return jsonify({"error": "Both start and end are required"}), 400
 
+    device_id = request.args.get("device_id")
     try:
-        data = pth_data.get_readings_in_range(_db_path(), start, end)
+        data = pth_data.get_readings_in_range(_db_path(), start, end, device_id)
     except ValueError:
         return jsonify({"error": f"Invalid start/end value: {start!r}, {end!r}"}), 400
 

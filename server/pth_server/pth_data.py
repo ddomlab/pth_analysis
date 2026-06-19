@@ -83,20 +83,26 @@ def _pivot_to_records(rows: list[sqlite3.Row]) -> list[dict]:
     return list(grouped.values())
 
 
-def get_recent_readings(db_path: str, days: float) -> list[dict]:
-    """ Get readings from the last 'days' days. """
+def get_recent_readings(db_path: str, days: float, device_id: str | None = None) -> list[dict]:
+    """ Get readings from the last 'days' days, optionally restricted to one device_id. """
     cutoff_time = int((datetime.now() - pd.Timedelta(days=days)).timestamp())
+    query = "SELECT device_id, channel, value, time FROM readings WHERE time >= ?"
+    params: list = [cutoff_time]
+    if device_id:
+        query += " AND device_id = ?"
+        params.append(device_id)
+    query += " ORDER BY time;"
     with _get_conn(db_path) as conn:
-        rows = conn.execute(
-            "SELECT device_id, channel, value, time FROM readings WHERE time >= ? ORDER BY time;",
-            (cutoff_time,),
-        ).fetchall()
+        rows = conn.execute(query, params).fetchall()
     return _pivot_to_records(rows)
 
 
-def get_readings_in_range(db_path: str, start: str | int, end: str | int) -> list[dict]:
-    """ Get readings with time in [start, end], inclusive. Each bound accepts
-    a Unix epoch integer (or numeric string) or an ISO 8601 datetime string.
+def get_readings_in_range(
+    db_path: str, start: str | int, end: str | int, device_id: str | None = None
+) -> list[dict]:
+    """ Get readings with time in [start, end], inclusive, optionally restricted to one
+    device_id. Each bound accepts a Unix epoch integer (or numeric string) or an ISO 8601
+    datetime string.
 
     Returns a plain list of dicts rather than a DataFrame deliberately: when
     devices report different channel sets, building a DataFrame from these
@@ -105,32 +111,43 @@ def get_readings_in_range(db_path: str, start: str | int, end: str | int) -> lis
     not valid JSON, so browsers' JSON.parse (and fetch().json()) reject it. """
     start_time = _parse_time(start)
     end_time = _parse_time(end)
+    query = "SELECT device_id, channel, value, time FROM readings WHERE time >= ? AND time <= ?"
+    params: list = [start_time, end_time]
+    if device_id:
+        query += " AND device_id = ?"
+        params.append(device_id)
+    query += " ORDER BY time;"
     with _get_conn(db_path) as conn:
-        rows = conn.execute(
-            "SELECT device_id, channel, value, time FROM readings WHERE time >= ? AND time <= ? ORDER BY time;",
-            (start_time, end_time),
-        ).fetchall()
+        rows = conn.execute(query, params).fetchall()
     return _pivot_to_records(rows)
 
 
-def get_closest_reading(db_path: str, target_time: str | int) -> dict | None:
-    """ Get the reading with the closest time to the target_time. """
+def get_closest_reading(db_path: str, target_time: str | int, device_id: str | None = None) -> dict | None:
+    """ Get the reading with the closest time to the target_time, optionally restricted to
+    one device_id. Without a device_id, if multiple devices share the exact closest
+    timestamp, one is returned arbitrarily - passing device_id makes the result unambiguous. """
     target_time = _parse_time(target_time)
 
+    closest_query = "SELECT time FROM readings"
+    closest_params: list = []
+    if device_id:
+        closest_query += " WHERE device_id = ?"
+        closest_params.append(device_id)
+    closest_query += " ORDER BY ABS(time - ?) LIMIT 1;"
+    closest_params.append(target_time)
+
     with _get_conn(db_path) as conn:
-        closest_row = conn.execute(
-            "SELECT time FROM readings ORDER BY ABS(time - ?) LIMIT 1;",
-            (target_time,),
-        ).fetchone()
+        closest_row = conn.execute(closest_query, closest_params).fetchone()
         if closest_row is None:
             return None
 
-        # Multiple devices could share this exact timestamp; first pivoted
-        # record wins. Revisit if/when device-aware lookups are needed.
-        rows = conn.execute(
-            "SELECT device_id, channel, value, time FROM readings WHERE time = ?;",
-            (closest_row["time"],),
-        ).fetchall()
+        rows_query = "SELECT device_id, channel, value, time FROM readings WHERE time = ?"
+        rows_params: list = [closest_row["time"]]
+        if device_id:
+            rows_query += " AND device_id = ?"
+            rows_params.append(device_id)
+
+        rows = conn.execute(rows_query, rows_params).fetchall()
 
     records = _pivot_to_records(rows)
     return records[0] if records else None

@@ -55,6 +55,8 @@ If two devices recorded a reading at the exact same `time`, each produces its ow
 
 Anywhere a timestamp is accepted as a query parameter, it can be given as either a Unix epoch integer (or numeric string) or an ISO 8601 datetime string (e.g. `2025-02-19T14:30:00`).
 
+All three retrieval endpoints below also accept an optional `device_id` to restrict results to one device.
+
 ### `GET /pth/api/ndays`
 
 Returns all readings from the past N days.
@@ -62,9 +64,11 @@ Returns all readings from the past N days.
 | Param | Required | Description |
 |---|---|---|
 | `days` | no (default `1`) | Positive integer number of days to look back from now. |
+| `device_id` | no | Restrict to readings from this device only. |
 
 ```
 GET /pth/api/ndays?days=7
+GET /pth/api/ndays?days=7&device_id=greenhouse-1
 ```
 
 **Response — `400 Bad Request`** if `days` is missing, non-numeric, or ≤ 0:
@@ -80,9 +84,11 @@ Returns all readings with `time` between `start` and `end`, inclusive.
 |---|---|---|
 | `start` | yes | Range start — epoch int or ISO 8601 string. |
 | `end` | yes | Range end — epoch int or ISO 8601 string. |
+| `device_id` | no | Restrict to readings from this device only. |
 
 ```
 GET /pth/api/range?start=1740000000&end=2025-03-01T00:00:00
+GET /pth/api/range?start=1740000000&end=2025-03-01T00:00:00&device_id=greenhouse-1
 ```
 
 **Response — `400 Bad Request`** if either param is missing or unparseable:
@@ -98,10 +104,11 @@ Returns the single reading whose `time` is closest to `time`.
 | Param | Required | Description |
 |---|---|---|
 | `time` | yes | Target timestamp — epoch int or ISO 8601 string. |
+| `device_id` | no | Restrict to readings from this device only. |
 
 ```
 GET /pth/api/closest?time=1740000000
-GET /pth/api/closest?time=2025-02-19T14:30:00
+GET /pth/api/closest?time=2025-02-19T14:30:00&device_id=greenhouse-1
 ```
 
 Unlike the other retrieval endpoints, this returns a single JSON object, not an array:
@@ -114,7 +121,7 @@ Unlike the other retrieval endpoints, this returns a single JSON object, not an 
 }
 ```
 
-If multiple devices share the exact closest timestamp, one is returned arbitrarily (whichever was inserted first) — there is currently no way to disambiguate by device on this endpoint.
+If multiple devices share the exact closest timestamp and no `device_id` is given, one is returned arbitrarily (whichever was inserted first). Pass `device_id` to get an unambiguous result.
 
 **Response — `400 Bad Request`** if `time` is missing:
 ```json
