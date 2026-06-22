@@ -378,8 +378,33 @@
       document.getElementById("findPointBtn").addEventListener("click", findClosestPoint);
       document.getElementById("exportCsvBtn").addEventListener("click", exportToCsv);
 
-      setQuickDateRange(24 * 7);
+      if (!applyUrlDateRange()) {
+        setQuickDateRange(24 * 7);
+      }
       loadData();
+    }
+
+    // Accepts ?start=&end= on the dashboard URL (epoch seconds or ISO 8601,
+    // same flexible parsing /pth/api/range accepts) as a shortcut to land
+    // directly on a given date range. Returns true if both were present and valid.
+    function applyUrlDateRange() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const startParam = urlParams.get("start");
+      const endParam = urlParams.get("end");
+      if (!startParam || !endParam) return false;
+
+      const start = parseDateParam(startParam);
+      const end = parseDateParam(endParam);
+      if (!start || !end) return false;
+
+      document.getElementById("startDate").value = formatDateTimeLocal(start);
+      document.getElementById("endDate").value = formatDateTimeLocal(end);
+      return true;
+    }
+
+    function parseDateParam(value) {
+      const date = /^\d+$/.test(value) ? new Date(parseInt(value, 10) * 1000) : new Date(value);
+      return isNaN(date.getTime()) ? null : date;
     }
 
     function setQuickDateRange(hours) {

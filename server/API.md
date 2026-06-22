@@ -6,7 +6,16 @@ All endpoints are served under the `/pth` prefix (the Flask Blueprint's `url_pre
 
 ### `GET /pth/dashboard`
 
-Serves the browser-based dashboard (`pth_analysis.html`) — a Chart.js time-series view with date-range controls, per-channel toggles, point lookup, and CSV export. No parameters.
+Serves the browser-based dashboard (`pth_analysis.html`) — a Chart.js time-series view with date-range controls, per-channel toggles, point lookup, and CSV export.
+
+Optionally accepts `start` and `end` query parameters (same flexible epoch-int-or-ISO-8601 format as `/pth/api/range`) as a shortcut straight to a given date range instead of the default last-7-days view:
+
+```
+GET /pth/dashboard?start=1740000000&end=1742000000
+GET /pth/dashboard?start=2025-02-19T14:30:00&end=2025-03-01T00:00:00
+```
+
+Both must be present and parseable to take effect — if either is missing or invalid, the dashboard falls back to its default range. This is handled entirely client-side in the page's JavaScript; the route itself ignores the query string.
 
 ## Data ingestion
 
