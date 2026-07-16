@@ -2,7 +2,7 @@ from flask import Blueprint, Flask, current_app, jsonify, request, send_from_dir
 
 from . import pth_data
 
-DEFAULT_DB_PATH = "pth_data.db"
+DEFAULT_DB_PATH = "/etc/pth/pth_data.db"
 
 pth_bp = Blueprint("pth", __name__, url_prefix="/pth", static_folder="static")
 
