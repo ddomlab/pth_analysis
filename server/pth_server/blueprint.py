@@ -2,7 +2,7 @@ from flask import Blueprint, Flask, current_app, jsonify, request, send_from_dir
 
 from . import pth_data
 
-DEFAULT_DB_PATH = "pth_data.db"
+DEFAULT_DB_PATH = "/etc/pth/pth_data.db"
 
 pth_bp = Blueprint("pth", __name__, url_prefix="/pth", static_folder="static")
 
@@ -92,3 +92,8 @@ def data_range():
         return jsonify({"error": f"Invalid start/end value: {start!r}, {end!r}"}), 400
 
     return jsonify(data)
+
+@pth_bp.route("/api/debug/db_path", methods=["GET"])
+def debug_db_path():
+    """ Returns the current database path for debugging purposes. """
+    return jsonify({"db_path": _db_path()})
