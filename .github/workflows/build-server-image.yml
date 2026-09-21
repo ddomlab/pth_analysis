@@ -1,0 +1,65 @@
+name: Build PTH server image
+
+# Pull requests: build only (proves the image still builds).
+# main and version tags: build and publish to GitHub Container Registry.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths: ["server/**", ".github/workflows/build-server-image.yml"]
+  pull_request:
+    paths: ["server/**", ".github/workflows/build-server-image.yml"]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/pth-server
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write          # allows pushing to ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # provided by Actions, no secret to manage
+
+      - name: Work out image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha,format=short
+
+      - name: Build (and push on main/tags)
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker build -t pth-test server
+          docker run -d --name pth -p 5000:5000 -v /tmp/pth-data:/data pth-test
+          for i in $(seq 30); do
+            curl -fsS http://127.0.0.1:5000/pth/api/ndays?days=1 && break || sleep 1
+          done
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d '{"time":1700000000,"device_id":"ci","Test Channel":1.5}' \
+            http://127.0.0.1:5000/pth/api/store_data
+          curl -fsS "http://127.0.0.1:5000/pth/api/closest?time=1700000000&device_id=ci"
+          docker rm -f pth

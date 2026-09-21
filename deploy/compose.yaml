@@ -1,0 +1,30 @@
+# PTH server on the lab server.
+#
+#   cp .env.example .env    # then set PTH_DATA_DIR (and PTH_VERSION to pin a release)
+#   docker compose pull && docker compose up -d
+#
+# No ports are published: the edge proxy (Caddy) reaches this container over
+# the shared "lab-net" network at http://pth:5000.
+name: pth
+
+services:
+  pth:
+    image: ghcr.io/ddomlab/pth-server:${PTH_VERSION:-latest}
+    container_name: pth
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      PTH_DB_PATH: /data/pth_data.db
+    volumes:
+      # SQLite database, on the attached volume so it outlives the container
+      - ${PTH_DATA_DIR:?set PTH_DATA_DIR in .env}:/data
+    networks:
+      - lab-net
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  lab-net:
+    # created once on the server with: docker network create lab-net
+    external: true
