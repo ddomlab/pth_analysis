@@ -56,7 +56,10 @@ jobs:
       - name: Smoke test the image
         run: |
           docker build -t pth-test server
-          docker run -d --name pth -p 5000:5000 -v /tmp/pth-data:/data pth-test
+          # no volume mount: the image's own /data is owned by the app user.
+          # (On a real server, chown the mounted folder to 1001:1001 first.)
+          docker run -d --name pth -p 5000:5000 pth-test
+          sleep 3 && docker logs pth
           for i in $(seq 30); do
             curl -fsS http://127.0.0.1:5000/pth/api/ndays?days=1 && break || sleep 1
           done
