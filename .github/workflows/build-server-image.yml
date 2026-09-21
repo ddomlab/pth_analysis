@@ -6,9 +6,8 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-    paths: ["server/**", ".github/workflows/build-server-image.yml"]
   pull_request:
-    paths: ["server/**", ".github/workflows/build-server-image.yml"]
+  workflow_dispatch:        # adds a "Run workflow" button in the Actions tab
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/pth-server
